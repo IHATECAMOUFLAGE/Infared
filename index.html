@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+    function openPage(page) {
+      WINDOW = window.open();
+      WINDOW.document.write(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Jarumi :3</title>
+          <style>
+            html, body, iframe {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+            }
+            iframe {
+              background-image: url('loading.gif');
+              background-position: center;
+              background-size: 150px;
+              background-color: black;
+              background-repeat: no-repeat;
+            }
+          </style>
+        </head>
+        <body>
+          <iframe src="${page}" frameborder="0"></iframe>
+        </body>
+        </html>`)
+    }
+    openPage('./main.html');
+    window.location.href = 'https://ixl.com';
+  </script>
+</body>
+</html>
