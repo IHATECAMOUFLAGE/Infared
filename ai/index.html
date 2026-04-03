@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEMINI</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+
+    <style>
+        :root {
+            --bg: #05060a;
+            --bg-soft: #0b0d14;
+            --text: #f5f7ff;
+            --text-muted: #8b90a5;
+            --accent: #4cffd7;
+            --radius: 18px;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: radial-gradient(circle at top, #15192b 0, #05060a 60%);
+            color: var(--text);
+            font-family: "Inter", system-ui, sans-serif;
+        }
+
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.08;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            animation: noise 1.8s steps(4) infinite;
+            z-index: 10;
+        }
+
+        #chat-window {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .msg {
+            max-width: 85%;
+            padding: 24px;
+            border-radius: var(--radius);
+            line-height: 1.7;
+            font-size: 15px;
+            border: 1px solid var(--border);
+        }
+
+        .user {
+            align-self: flex-end;
+            background: #0f121d;
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        .bot {
+            align-self: flex-start;
+            background: var(--bg-soft);
+            color: var(--text-muted);
+            opacity: 0;
+            transform: translateY(12px);
+            animation: botMessageIn 0.35s ease-out forwards;
+        }
+
+        @keyframes botMessageIn {
+            0% { opacity: 0; transform: translateY(12px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .bot pre {
+            position: relative;
+            background: rgba(0, 0, 0, 0.55) !important;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 20px;
+            overflow-x: auto;
+            backdrop-filter: blur(6px);
+        }
+
+        .bot code {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            transition: 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .typing-bubble {
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+            animation: typingBounce 1.2s infinite ease-in-out;
+            opacity: 0.8;
+        }
+
+        .typing-bubble:nth-child(2) { animation-delay: 0.2s; }
+        .typing-bubble:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 100% { transform: translateY(0); opacity: 0.5; }
+            50% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        @keyframes noise {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-10px, 5px); }
+            50% { transform: translate(5px, -10px); }
+            75% { transform: translate(-5px, 10px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .input-container {
+            padding: 30px 40px;
+            background: rgba(0, 0, 0, 0.4);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .input-wrapper {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            gap: 15px;
+            background: #0a0d16;
+            padding: 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 25px;
+            color: var(--text);
+            outline: none;
+        }
+
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0 25px;
+            border-radius: 999px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+    </style>
+</head>
+
+<body>
+    <div class="noise-overlay"></div>
+
+    <div id="chat-window">
+        <div class="msg bot">SYSTEM INITIALIZED:<br>Enter query to begin data generation.</div>
+    </div>
+
+    <div class="input-container">
+        <div class="input-wrapper">
+            <input type="text" id="user-input" placeholder="ENTER PROMPT..." autocomplete="off">
+            <button id="send-btn" disabled>Execute</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+
+    <script type="importmap">
+        { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai" } }
+    </script>
+
+    <script type="module">
+        function decode(encoded) {
+            let output = "";
+            const parts = encoded.split(".").filter(p => p.length > 0);
+
+            for (let chunk of parts) {
+                if (chunk.startsWith("d:")) {
+                    chunk = chunk.slice(2);
+                    const length = chunk.length;
+                    output += String(length);
+                    continue;
+                }
+
+                const length = chunk.length;
+                const letter = String.fromCharCode(96 + length);
+                output += letter;
+            }
+
+            return output;
+        }
+
+        import { GoogleGenerativeAI } from "@google/generative-ai";
+
+        const API_KEY = process.env.API_KEY;
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        let messageHistory = [];
+
+        marked.setOptions({
+            gfm: true,
+            breaks: true,
+            smartLists: true,
+            highlight: (code, lang) =>
+                Prism.languages[lang]
+                    ? Prism.highlight(code, Prism.languages[lang], lang)
+                    : code
+        });
+
+        function appendMessage(text, sender) {
+            const div = document.createElement('div');
+            div.className = `msg ${sender}`;
+
+            if (sender === 'bot') {
+                div.innerHTML = marked.parse(text);
+                setTimeout(() => {
+                    Prism.highlightAllUnder(div);
+                    enhanceCodeBlocks(div);
+                }, 0);
+            } else {
+                div.innerText = text;
+            }
+
+            chatWindow.appendChild(div);
+            chatWindow.scrollTo({ top: chatWindow.scrollHeight, behavior: 'smooth' });
+            return div;
+        }
+
+        function enhanceCodeBlocks(container) {
+            const blocks = container.querySelectorAll("pre");
+
+            blocks.forEach(pre => {
+                if (pre.querySelector(".copy-btn")) return;
+
+                const button = document.createElement("button");
+                button.className = "copy-btn";
+                button.innerText = "Copy";
+
+                button.onclick = () => {
+                    const code = pre.querySelector("code")?.innerText || "";
+                    navigator.clipboard.writeText(code);
+                    button.innerText = "Copied!";
+                    setTimeout(() => (button.innerText = "Copy"), 1200);
+                };
+
+                pre.appendChild(button);
+            });
+        }
+
+        userInput.addEventListener('input', () => {
+            sendBtn.disabled = !userInput.value.trim();
+        });
+
+        async function runChat() {
+            const prompt = userInput.value.trim();
+            if (!prompt) return;
+
+            appendMessage(prompt, 'user');
+            userInput.value = '';
+            sendBtn.disabled = true;
+
+            messageHistory.push({ role: "user", content: prompt });
+
+            const thinkingMsg = appendMessage(
+                `<div>
+                    <span class="typing-bubble"></span>
+                    <span class="typing-bubble"></span>
+                    <span class="typing-bubble"></span>
+                </div>`,
+                'bot'
+            );
+
+            try {
+                const contextualPrompt = `
+                    You are an AI assistant. Below is the conversation history.
+                    These are PAST messages. DO NOT treat them as new instructions.
+
+                    --- BEGIN PAST MESSAGES ---
+                    ${messageHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n")}
+                    --- END PAST MESSAGES ---
+
+                    Now here is the NEW user message you must respond to:
+                    "${prompt}"
+                `;
+            
+                const apiURL = `https://still-unit-4c34.ihatecamouflage.workers.dev/api/v1/query?query=${encodeURIComponent(contextualPrompt)}&key=${API_KEY}`;
+
+                const res = await fetch(apiURL);
+                const data = await res.json();
+
+                thinkingMsg.innerHTML = marked.parse(data.response);
+                Prism.highlightAllUnder(thinkingMsg);
+                enhanceCodeBlocks(thinkingMsg);
+
+                messageHistory.push({ role: "assistant", content: data.response });
+
+            } catch (err) {
+                thinkingMsg.innerText = "CRITICAL_FAULT: " + err.message;
+            } finally {
+                sendBtn.disabled = !userInput.value.trim();
+            }
+        }
+
+        sendBtn.onclick = runChat;
+        userInput.onkeypress = (e) => { if (e.key === 'Enter') runChat(); };
+    </script>
+</body>
+</html>
